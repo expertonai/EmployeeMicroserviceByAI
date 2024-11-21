@@ -1,17 +1,20 @@
 package experton.ai.employee.controller;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import experton.ai.employee.dto.EmployeeRequest;
+import experton.ai.employee.dto.EmployeeResponse;
 import experton.ai.employee.dto.ErrorResponse;
 import experton.ai.employee.exception.ValidationException;
 import experton.ai.employee.model.Employee;
@@ -23,6 +26,12 @@ public class EmployeeController {
 
     @Autowired
     private EmployeeService employeeService;
+
+    @GetMapping
+    public ResponseEntity<List<EmployeeResponse>> getAllEmployees() {
+        List<EmployeeResponse> employees = employeeService.getAllEmployees();
+        return new ResponseEntity<>(employees, HttpStatus.OK);
+    }
 
     @PostMapping
     public ResponseEntity<Employee> createEmployee(@RequestBody EmployeeRequest employeeRequest) {

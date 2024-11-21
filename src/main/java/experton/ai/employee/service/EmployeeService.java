@@ -1,8 +1,12 @@
 package experton.ai.employee.service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import experton.ai.employee.dto.EmployeeResponse;
 import experton.ai.employee.exception.ValidationException;
 import experton.ai.employee.model.Employee;
 import experton.ai.employee.repository.EmployeeRepository;
@@ -16,6 +20,25 @@ public class EmployeeService {
     public Employee saveEmployee(Employee employee) {
         validateEmployee(employee);
         return employeeRepository.save(employee);
+    }
+
+    public List<EmployeeResponse> getAllEmployees() {
+        List<Employee> employees = employeeRepository.findAll();
+        return employees.stream()
+                .map(this::convertToEmployeeResponse)
+                .collect(Collectors.toList());
+    }
+
+    private EmployeeResponse convertToEmployeeResponse(Employee employee) {
+        return new EmployeeResponse(
+            employee.getId(),
+            employee.getName(),
+            employee.getDateOfJoining(),
+            employee.getStatus(),
+            employee.getDepartment(),
+            employee.getSalary(),
+            employee.getManagerId()
+        );
     }
 
     private void validateEmployee(Employee employee) {
