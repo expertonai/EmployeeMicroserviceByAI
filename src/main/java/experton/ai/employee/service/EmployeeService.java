@@ -1,5 +1,6 @@
 package experton.ai.employee.service;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import experton.ai.employee.dto.EmployeeRequest;
 import experton.ai.employee.dto.EmployeeResponse;
+import experton.ai.employee.enums.SortOrder;
 import experton.ai.employee.exception.ValidationException;
 import experton.ai.employee.model.Employee;
 import experton.ai.employee.repository.EmployeeRepository;
@@ -24,16 +26,39 @@ public class EmployeeService {
         return employeeRepository.save(employee);
     }
 
-    public List<EmployeeResponse> getAllEmployees() {
+    public List<EmployeeResponse> getAllEmployees(String sortOrder) {
         List<Employee> employees = employeeRepository.findAll();
+        
+        if (sortOrder != null) {
+            employees = sortEmployeesBySalary(employees, sortOrder);
+        }
+        
         return employees.stream()
                 .map(this::convertToEmployeeResponse)
+                .collect(Collectors.toList());
+    }
+
+    private List<Employee> sortEmployeesBySalary(List<Employee> employees, String sortOrder) {
+        Comparator<Employee> salaryComparator = Comparator.comparing(Employee::getSalary);
+        
+        if (SortOrder.DESC.name().equalsIgnoreCase(sortOrder)) {
+            salaryComparator = salaryComparator.reversed();
+        }
+        
+        return employees.stream()
+                .sorted(salaryComparator)
                 .collect(Collectors.toList());
     }
 
     public Optional<EmployeeResponse> getEmployeeById(Integer id) {
         return employeeRepository.findById(id)
                 .map(this::convertToEmployeeResponse);
+    }
+
+    public void deleteEmployee(Integer id) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ValidationException("Employee not found with id: " + id));
+        employeeRepository.delete(employee);
     }
 
     public Employee updateEmployee(Integer id, EmployeeRequest request) {
