@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -54,6 +55,21 @@ public class EmployeeController {
         Employee employee = convertToEntity(employeeRequest);
         Employee savedEmployee = employeeService.saveEmployee(employee);
         return new ResponseEntity<>(savedEmployee, HttpStatus.CREATED);
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<Object> updateEmployee(@PathVariable Integer id, @RequestBody EmployeeRequest employeeRequest) {
+        try {
+            Employee updatedEmployee = employeeService.updateEmployee(id, employeeRequest);
+            return ResponseEntity.ok(updatedEmployee);
+        } catch (ValidationException ex) {
+            ErrorResponse errorResponse = new ErrorResponse(
+                LocalDateTime.now(),
+                ex.getMessage(),
+                HttpStatus.BAD_REQUEST.toString()
+            );
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
     }
 
     @ExceptionHandler(ValidationException.class)

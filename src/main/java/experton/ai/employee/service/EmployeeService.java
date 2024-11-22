@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import experton.ai.employee.dto.EmployeeRequest;
 import experton.ai.employee.dto.EmployeeResponse;
 import experton.ai.employee.exception.ValidationException;
 import experton.ai.employee.model.Employee;
@@ -33,6 +34,51 @@ public class EmployeeService {
     public Optional<EmployeeResponse> getEmployeeById(Integer id) {
         return employeeRepository.findById(id)
                 .map(this::convertToEmployeeResponse);
+    }
+
+    public Employee updateEmployee(Integer id, EmployeeRequest request) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ValidationException("Employee not found with id: " + id));
+
+        // Update only the non-null fields
+        if (request.getName() != null) {
+            if (request.getName().trim().isEmpty()) {
+                throw new ValidationException("Employee name cannot be empty");
+            }
+            employee.setName(request.getName());
+        }
+
+        if (request.getDateOfJoining() != null) {
+            employee.setDateOfJoining(request.getDateOfJoining());
+        }
+
+        if (request.getStatus() != null) {
+            employee.setStatus(request.getStatus());
+        }
+
+        if (request.getDepartment() != null) {
+            employee.setDepartment(request.getDepartment());
+        }
+
+        if (request.getSalary() != null) {
+            if (request.getSalary() < 0) {
+                throw new ValidationException("Salary cannot be negative");
+            }
+            employee.setSalary(request.getSalary());
+        }
+
+        if (request.getManagerId() != null) {
+            if (request.getManagerId().equals(id)) {
+                throw new ValidationException("Employee cannot be their own manager");
+            }
+            // Optionally validate if manager exists
+            if (!employeeRepository.existsById(request.getManagerId())) {
+                throw new ValidationException("Manager not found with id: " + request.getManagerId());
+            }
+            employee.setManagerId(request.getManagerId());
+        }
+
+        return employeeRepository.save(employee);
     }
 
     private EmployeeResponse convertToEmployeeResponse(Employee employee) {
