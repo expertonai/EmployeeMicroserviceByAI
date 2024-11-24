@@ -1,7 +1,8 @@
 package experton.ai.employee.dto;
 
-import java.util.Date;
+import java.time.LocalDate;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import experton.ai.employee.enums.Department;
@@ -17,7 +18,10 @@ import lombok.NoArgsConstructor;
 public class EmployeeResponse {
     private Integer id;
     private String name;
-    private Date dateOfJoining;
+    
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate dateOfJoining;
+    
     private EmployeeStatus status;
     private Department department;
     private Double salary;

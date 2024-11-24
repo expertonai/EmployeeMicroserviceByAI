@@ -1,6 +1,6 @@
 package experton.ai.employee.model;
 
-import java.util.Date;
+import java.time.LocalDate;
 
 import experton.ai.employee.enums.Department;
 import experton.ai.employee.enums.EmployeeStatus;
@@ -12,8 +12,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Temporal;
-import jakarta.persistence.TemporalType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -34,8 +32,7 @@ public class Employee {
     private String name;
 
     @Column(name = "date_of_joining")
-    @Temporal(TemporalType.DATE)
-    private Date dateOfJoining;
+    private LocalDate dateOfJoining;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
