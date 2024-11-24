@@ -1,5 +1,7 @@
 package experton.ai.employee.service;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -10,6 +12,9 @@ import org.springframework.stereotype.Service;
 
 import experton.ai.employee.dto.EmployeeRequest;
 import experton.ai.employee.dto.EmployeeResponse;
+import experton.ai.employee.dto.ValidationError;
+import experton.ai.employee.enums.Department;
+import experton.ai.employee.enums.EmployeeStatus;
 import experton.ai.employee.enums.SortOrder;
 import experton.ai.employee.exception.ValidationException;
 import experton.ai.employee.model.Employee;
@@ -22,11 +27,24 @@ public class EmployeeService {
     private EmployeeRepository employeeRepository;
 
     public Employee saveEmployee(Employee employee) {
-        validateEmployee(employee);
+        List<ValidationError> errors = validateEmployee(employee);
+        if (!errors.isEmpty()) {
+            throw new ValidationException("Validation failed", errors);
+        }
         return employeeRepository.save(employee);
     }
 
     public List<EmployeeResponse> getAllEmployees(String sortOrder) {
+        if (sortOrder != null && !SortOrder.isValid(sortOrder)) {
+            List<ValidationError> errors = new ArrayList<>();
+            errors.add(new ValidationError("sort", 
+                "Invalid sort order. Allowed values are: " + 
+                Arrays.stream(SortOrder.values())
+                    .map(Enum::name)
+                    .collect(Collectors.joining(", "))));
+            throw new ValidationException("Invalid sort parameter", errors);
+        }
+        
         List<Employee> employees = employeeRepository.findAll();
         
         if (sortOrder != null) {
@@ -56,51 +74,89 @@ public class EmployeeService {
     }
 
     public void deleteEmployee(Integer id) {
-        Employee employee = employeeRepository.findById(id)
-                .orElseThrow(() -> new ValidationException("Employee not found with id: " + id));
-        employeeRepository.delete(employee);
+        if (!employeeRepository.existsById(id)) {
+            List<ValidationError> errors = new ArrayList<>();
+            errors.add(new ValidationError("id", "Employee not found with id: " + id));
+            throw new ValidationException("Employee not found", errors);
+        }
+        employeeRepository.deleteById(id);
     }
 
     public Employee updateEmployee(Integer id, EmployeeRequest request) {
         Employee employee = employeeRepository.findById(id)
-                .orElseThrow(() -> new ValidationException("Employee not found with id: " + id));
+                .orElseThrow(() -> {
+                    List<ValidationError> errors = new ArrayList<>();
+                    errors.add(new ValidationError("id", "Employee not found with id: " + id));
+                    return new ValidationException("Employee not found", errors);
+                });
 
-        // Update only the non-null fields
+        List<ValidationError> errors = new ArrayList<>();
+
+        // Update and validate name
         if (request.getName() != null) {
             if (request.getName().trim().isEmpty()) {
-                throw new ValidationException("Employee name cannot be empty");
+                errors.add(new ValidationError("name", "Employee name cannot be empty"));
+            } else {
+                employee.setName(request.getName());
             }
-            employee.setName(request.getName());
         }
 
+        // Update and validate dateOfJoining
         if (request.getDateOfJoining() != null) {
             employee.setDateOfJoining(request.getDateOfJoining());
         }
 
+        // Update and validate status
         if (request.getStatus() != null) {
-            employee.setStatus(request.getStatus());
+            try {
+                employee.setStatus(request.getStatus());
+            } catch (IllegalArgumentException e) {
+                String allowedValues = Arrays.stream(EmployeeStatus.values())
+                    .map(Enum::name)
+                    .collect(Collectors.joining(", "));
+                errors.add(new ValidationError("status", 
+                    "Invalid status. Allowed values are: " + allowedValues));
+            }
         }
 
+        // Update and validate department
         if (request.getDepartment() != null) {
-            employee.setDepartment(request.getDepartment());
+            try {
+                employee.setDepartment(request.getDepartment());
+            } catch (IllegalArgumentException e) {
+                String allowedValues = Arrays.stream(Department.values())
+                    .map(Enum::name)
+                    .collect(Collectors.joining(", "));
+                errors.add(new ValidationError("department", 
+                    "Invalid department. Allowed values are: " + allowedValues));
+            }
         }
 
+        // Update and validate salary
         if (request.getSalary() != null) {
             if (request.getSalary() < 0) {
-                throw new ValidationException("Salary cannot be negative");
+                errors.add(new ValidationError("salary", 
+                    "Salary must be a positive number"));
+            } else {
+                employee.setSalary(request.getSalary());
             }
-            employee.setSalary(request.getSalary());
         }
 
+        // Update and validate managerId
         if (request.getManagerId() != null) {
             if (request.getManagerId().equals(id)) {
-                throw new ValidationException("Employee cannot be their own manager");
+                errors.add(new ValidationError("managerId", 
+                    "Employee cannot be their own manager"));
+            } else if (!employeeRepository.existsById(request.getManagerId())) {
+                errors.add(new ValidationError("managerId", 
+                    "Manager not found with id: " + request.getManagerId()));
+            } else {
+                employee.setManagerId(request.getManagerId());
             }
-            // Optionally validate if manager exists
-            if (!employeeRepository.existsById(request.getManagerId())) {
-                throw new ValidationException("Manager not found with id: " + request.getManagerId());
-            }
-            employee.setManagerId(request.getManagerId());
+        }
+
+        if (!errors.isEmpty()) {
+            throw new ValidationException("Validation failed", errors);
         }
 
         return employeeRepository.save(employee);
@@ -118,23 +174,55 @@ public class EmployeeService {
         );
     }
 
-    private void validateEmployee(Employee employee) {
+    private List<ValidationError> validateEmployee(Employee employee) {
+        List<ValidationError> errors = new ArrayList<>();
+
+        // Validate name
         if (employee.getName() == null || employee.getName().trim().isEmpty()) {
-            throw new ValidationException("Employee name is mandatory");
+            errors.add(new ValidationError("name", "Employee name is mandatory"));
         }
 
+        // Validate dateOfJoining
         if (employee.getDateOfJoining() == null) {
-            throw new ValidationException("Date of joining is mandatory");
+            errors.add(new ValidationError("dateOfJoining", 
+                "Date of joining is mandatory. Format should be: yyyy-MM-dd"));
         }
 
+        // Validate status
         if (employee.getStatus() == null) {
-            throw new ValidationException("Employee status is mandatory");
+            String allowedValues = Arrays.stream(EmployeeStatus.values())
+                .map(Enum::name)
+                .collect(Collectors.joining(", "));
+            errors.add(new ValidationError("status", 
+                "Employee status is mandatory. Allowed values are: " + allowedValues));
         }
 
+        // Validate department
         if (employee.getDepartment() == null) {
-            throw new ValidationException("Department is mandatory");
+            String allowedValues = Arrays.stream(Department.values())
+                .map(Enum::name)
+                .collect(Collectors.joining(", "));
+            errors.add(new ValidationError("department", 
+                "Department is mandatory. Allowed values are: " + allowedValues));
         }
 
-        // Optional fields don't need validation as they can be null
+        // Validate salary if provided
+        if (employee.getSalary() != null && employee.getSalary() < 0) {
+            errors.add(new ValidationError("salary", 
+                "Salary must be a positive number"));
+        }
+
+        // Validate managerId if provided
+        if (employee.getManagerId() != null) {
+            if (employee.getId() != null && employee.getManagerId().equals(employee.getId())) {
+                errors.add(new ValidationError("managerId", 
+                    "Employee cannot be their own manager"));
+            } else if (!employeeRepository.existsById(employee.getManagerId())) {
+                errors.add(new ValidationError("managerId", 
+                    "Manager not found with id: " + employee.getManagerId()));
+            }
+        }
+
+        return errors;
     }
 }
